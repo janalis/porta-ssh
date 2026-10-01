@@ -56,7 +56,8 @@ the project here is offered:
   project is on the server.
 
 **Find in Files runs `grep` on the server**, so it searches every file, not
-only those you opened.
+only those you opened. Replace All fetches the files it has to change first,
+then replaces once they are all here.
 
 The server needs only `sh` and the standard tools: `find` or `stat`, `cat`,
 `mv`, `mkdir`, `rm` and `mktemp`.
