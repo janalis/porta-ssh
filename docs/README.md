@@ -15,10 +15,10 @@ host key seen for the first time is answered there. That connection stays open
 every file it lists, fetches or saves rides it, one round trip each. Your
 `~/.ssh/config` applies, so a host alias works as the host.
 
-You can also open one from inside Porta with **File → Open Remote Project…**.
-The IDE never prompts, though, so a server that needs a password has to be
-connected with `porta ssh` first. A server your keys or ssh-agent let you into
-works from either.
+You can also open one from inside Porta with **File → Open Remote Project…**
+(`Ctrl+Alt+Shift+O`). The IDE never prompts, though, so a server that needs a
+password has to be connected with `porta ssh` first. A server your keys or
+ssh-agent let you into works from either.
 
 ## How the project is kept
 
@@ -26,7 +26,11 @@ The project is kept in `~/.porta/remote/`, as a cache:
 
 - A directory is listed the first time the tree shows it. Every file in it
   appears at once, but as an empty placeholder.
-- A file is fetched the first time you open it.
+- Soon after the project opens, the whole tree is read in one `find`, leaving
+  out `vendor/`, `node_modules/` and `.git/`. Go to File then finds a file in a
+  directory you never expanded.
+- A file is fetched the first time you open it. Opening one that is not here
+  yet, from a search result say, still lands on its line once it arrives.
 - A save writes the cache, then sends the file to the server in the
   background.
 - Porta re-lists, every few seconds, the directories holding your open files
@@ -37,6 +41,11 @@ Saves are refused when the file changed on the server since you fetched it.
 The toast says so, and saving again overwrites. Quitting while changes are
 still on their way to the server asks twice, like quitting with unsaved edits.
 
+The status bar shows the server: `⇅ example.org`. It also shows `⇡2` while
+two changes are still on their way, and is highlighted after a refusal until
+the server next says yes. A directory the server would not list is asked
+again half a minute later.
+
 ## What runs on this machine
 
 The cache holds what you opened, not the project. So nothing that would run
@@ -46,7 +55,8 @@ the project here is offered:
 - **Run**, the terminal, the debugger and the analysers and formatters say the
   project is on the server.
 
-Find in Files searches only the files you have opened.
+**Find in Files runs `grep` on the server**, so it searches every file, not
+only those you opened.
 
 The server needs only `sh` and the standard tools: `find` or `stat`, `cat`,
 `mv`, `mkdir`, `rm` and `mktemp`.

@@ -77,6 +77,46 @@ final class SshTransportTest extends TestCase
         $this->assertSame("12 34\nmore\n", $file->bytes);
     }
 
+    public function testItWalksTheWholeTreeSkippingWhatItIsTold(): void
+    {
+        $this->server->write('vendor/x/Skipped.php', '');
+        $this->server->write('deep/er/Found.php', '<?php');
+        $this->server->write('lib/vendor/Nested.php', '');
+
+        $entries = $this->answer(fn (\Closure $done): bool => $this->transport->walk('', ['vendor', "it's"], $done));
+
+        $this->assertIsArray($entries);
+        $byPath = [];
+        foreach ($entries as $entry) {
+            $this->assertInstanceOf(RemoteEntry::class, $entry);
+            $byPath[$entry->name] = $entry;
+        }
+        \ksort($byPath);
+        $this->assertSame(
+            ['README.md', 'deep', 'deep/er', 'deep/er/Found.php', 'it\'s a "name" with spaces.txt', 'lib', 'src', 'src/App.php'],
+            \array_keys($byPath),
+            'a skipped name is skipped at any depth — as a directory only',
+        );
+        $this->assertTrue($byPath['deep/er']->isDir);
+        $this->assertEquals($this->stampOf($this->server, 'deep/er/Found.php'), $byPath['deep/er/Found.php']->stamp);
+    }
+
+    public function testAWalkWithNothingToSkipAndOneThatFails(): void
+    {
+        $this->assertCount(4, (array) $this->answer(fn (\Closure $done): bool => $this->transport->walk('', [], $done)));
+        $this->assertIsString($this->answer(fn (\Closure $done): bool => $this->transport->walk('nope', [], $done)));
+    }
+
+    public function testACommandRunsInTheProjectsDirectoryOnTheServer(): void
+    {
+        $this->server->write('sub/x.txt', "it's here");
+
+        $command = $this->transport->remoteCommand(['grep', '-rlF', '--', "it's", 'sub']);
+
+        $this->assertSame([self::FAKE_SSH, '-o', 'BatchMode=yes'], \array_slice($command, offset: 0, length: 3));
+        $this->assertSame("sub/x.txt\n", \shell_exec(\implode(' ', \array_map(\escapeshellarg(...), $command))));
+    }
+
     public function testFetchingAMissingFileSaysWhy(): void
     {
         $this->assertIsString($this->answer(fn (\Closure $done) => $this->transport->fetch('missing.txt', $done)));

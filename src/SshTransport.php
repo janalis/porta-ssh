@@ -67,6 +67,25 @@ if [ -e "$1" ]; then chmod "$(stat -c %a -- "$1" 2>/dev/null || stat -f %Lp -- "
 mv -f -- "$t" "$1" || { rm -f -- "$t"; exit 2; }
 stamp "$1"';
 
+    /**
+     * Every entry under "$1", as {@see LIST} prints them but named by their
+     * path below it; `{prune}` is where the skipped directories are pruned.
+     */
+    private const string WALK = self::STAT.'
+cd -- "$1" || exit 2
+if find . -maxdepth 0 -printf "" >/dev/null 2>&1; then
+  exec find . -mindepth 1 {prune} -printf "%Y\t%s\t%T@\t%P\0"
+fi
+find . -mindepth 1 {prune} -print | while IFS= read -r f; do
+  f=${f#./}
+  if [ -d "$f" ]; then printf "d\t0\t0\t%s\0" "$f"; continue; fi
+  s=$(stamp "$f") || continue
+  printf "f\t%s\t%s\t%s\0" "${s% *}" "${s#* }" "$f"
+done';
+
+    /** The rest of the arguments, run as a command in "$1". */
+    private const string IN_DIRECTORY = 'cd -- "$1" && shift && exec "$@"';
+
     private const string MKDIR = 'mkdir -p -- "$1"';
     private const string RENAME = 'mkdir -p -- "$(dirname -- "$2")" && mv -f -- "$1" "$2"';
     private const string REMOVE = 'rm -rf -- "$1"';
@@ -116,6 +135,25 @@ stamp "$1"';
                 default => self::failure($code, $err),
             });
         });
+    }
+
+    #[\Override]
+    public function remoteCommand(array $argv): array
+    {
+        return $this->command(self::IN_DIRECTORY, [$this->spec->remotePath(''), ...$argv]);
+    }
+
+    /** One `find` for the whole tree: GNU's `-printf` where there is one, else a `stat` per file. */
+    #[\Override]
+    public function walk(string $path, array $skip, \Closure $done): bool
+    {
+        $names = \implode(' -o ', \array_map(static fn (string $name): string => '-name '.self::quote($name), $skip));
+        $prune = [] === $skip ? '' : '\\( -type d \\( '.$names.' \\) \\) -prune -o';
+        $this->script(\str_replace('{prune}', $prune, self::WALK), [$this->spec->remotePath($path)], null, static function (int $code, string $out, string $err) use ($done): void {
+            $done(0 === $code ? self::entries($out) : self::failure($code, $err));
+        });
+
+        return true;
     }
 
     #[\Override]
