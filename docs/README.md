@@ -55,8 +55,8 @@ the project here is offered:
 - **Run**, the terminal, the debugger and the analysers and formatters say the
   project is on the server.
 
-**Find in Files runs `grep` on the server**, so it searches every file, not
-only those you opened. Replace All fetches the files it has to change first,
+**Find in Files runs `grep` on the server**, and so does Search Everywhere's
+text tab, so they search every file, not only those you opened. Replace All fetches the files it has to change first,
 then replaces once they are all here.
 
 The server needs only `sh` and the standard tools: `find` or `stat`, `cat`,
