@@ -12,9 +12,9 @@ use Porta\Filesystem\RemoteSpec;
 use Porta\Filesystem\RemoteStamp;
 use Porta\SshPlugin\SshTransport;
 use Porta\Tests\Support\DummyServer;
-use Porta\Tests\Support\ExercisesPresence;
 use Porta\Tests\Support\ExercisesTransport;
 use Porta\Tests\Support\PresencePeer;
+use Porta\Tests\Support\ProvesPresenceOverAServer;
 use Porta\Tests\Support\TempProject;
 
 /**
@@ -30,7 +30,7 @@ use Porta\Tests\Support\TempProject;
 #[Large]
 final class SshRealServerTest extends TestCase
 {
-    use ExercisesPresence;
+    use ProvesPresenceOverAServer;
     use ExercisesTransport;
 
     private TempProject $root;
@@ -79,28 +79,14 @@ final class SshRealServerTest extends TestCase
         $this->assertSame('ssh: connect to host example.org port '.$this->server->port.': Connection refused', $this->answer(static fn (\Closure $done) => $transport->list('', $done)));
     }
 
-    public function testTwoPortaInstancesOnTheServerSeeEachOther(): void
+    private function server(): DummyServer
     {
-        [$ada, $bo] = $this->peers();
-
-        $this->assertTwoInstancesSeeEachOther($ada, $bo);
-        $this->assertCount(2, (array) \glob($this->root->path('.porta/presence/*.json')), 'on the server, beside the project: one each');
+        return $this->server;
     }
 
-    public function testALostServerKeepsTheOthersAsLastSeen(): void
+    private function heartbeat(): float
     {
-        [$ada, $bo] = $this->peers();
-        $this->assertTwoInstancesSeeEachOther($ada, $bo);
-
-        $this->assertALostServerKeepsTheOthersAsLastSeen($ada, $bo, $this->server);
-    }
-
-    public function testOneWhoGoesQuietIsGone(): void
-    {
-        [$ada, $bo] = $this->peers();
-        $this->assertTwoInstancesSeeEachOther($ada, $bo);
-
-        $this->assertOneWhoGoesQuietIsGone($ada, $bo, 15.0);
+        return 15.0;
     }
 
     /** @return array{PresencePeer, PresencePeer} */
