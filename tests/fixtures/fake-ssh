@@ -1,0 +1,9 @@
+#!/bin/sh
+# ssh without the network: the options and the destination are dropped, and
+# the remote command runs here, parsed by sh as a login shell would parse it.
+# FAKE_SSH_LOG, when set, gets the whole argument list, one per line.
+if [ -n "$FAKE_SSH_LOG" ]; then printf '%s\n' "$@" >> "$FAKE_SSH_LOG"; fi
+while [ $# -gt 0 ] && [ "$1" != "--" ]; do shift; done
+shift 2
+[ $# -eq 0 ] && exit 0
+exec sh -c "$1"

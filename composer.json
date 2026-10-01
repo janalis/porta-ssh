@@ -1,0 +1,23 @@
+{
+    "name": "porta/ssh",
+    "description": "Open a project that lives on a server over ssh: browse, edit and save its files as though they were here",
+    "type": "porta-plugin",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.5",
+        "symfony/console": "^8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Porta\\SshPlugin\\": "src/"
+        }
+    },
+    "extra": {
+        "porta": {
+            "api": 1,
+            "commands": {
+                "ssh": "Porta\\SshPlugin\\Console\\OpenCommand"
+            }
+        }
+    }
+}
