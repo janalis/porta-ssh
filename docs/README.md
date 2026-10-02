@@ -46,6 +46,22 @@ two changes are still on their way, and is highlighted after a refusal until
 the server next says yes. A directory the server would not list is asked
 again half a minute later.
 
+**When the server cannot be reached** — the network went, the server
+restarted — nothing you saved is lost. The status bar shows `⌁`, your saves
+wait in order, and Porta asks the server again, less and less often, until it
+answers; then everything that waited is sent, and a toast says you are back.
+Right-click the server in the status bar for **Reconnect Now**. A save the
+server itself refuses (no permission, a full disk) stays here: it is counted
+in `⇡`, never overwritten by the server's copy, and sent again when you next
+save it.
+
+The shared connection sends keepalives, so one that died with the network is
+noticed in under a minute and the next call opens a new one. An upload cut
+off halfway never replaces the file on the server: it is checked whole first.
+When ssh says your key or password was refused, Porta waits five minutes
+before trying again — a server that counts refused logins may lock you out —
+unless you pick **Reconnect Now**.
+
 ## What runs on this machine
 
 The cache holds what you opened, not the project. So nothing that would run
