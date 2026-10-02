@@ -187,6 +187,12 @@ final class SshTransportTest extends TestCase
                 '-o',
                 'BatchMode=yes',
                 '-o',
+                'ConnectTimeout=10',
+                '-o',
+                'ServerAliveInterval=15',
+                '-o',
+                'ServerAliveCountMax=3',
+                '-o',
                 'ControlMaster=auto',
                 '-o',
                 'ControlPath=/home/me/.porta/ssh/%C',
@@ -239,5 +245,48 @@ final class SshTransportTest extends TestCase
         $this->assertSame($home->path('.porta/ssh'), $dir);
         $this->assertSame(0o700, \fileperms($dir) & 0o777);
         $this->assertSame($dir, SshTransport::controlDir($home->dir));
+    }
+
+    public function testAnUploadCutShortNeverReplacesTheFile(): void
+    {
+        $put = new \ReflectionClassConstant(SshTransport::class, 'PUT')->getValue();
+        $this->assertIsString($put);
+        $command = $this->transport->command($put, [$this->server->path('README.md'), '', '1000']);
+        $pipes = [];
+        $process = \proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        $this->assertIsResource($process);
+        \fwrite($pipes[0], data: 'only the first part');
+        \fclose($pipes[0]); // the connection cut: stdin ends early
+        $stderr = (string) \stream_get_contents($pipes[2]);
+        \fclose($pipes[1]);
+        \fclose($pipes[2]);
+
+        $this->assertSame(4, \proc_close($process));
+        $this->assertSame("the upload was cut short\n", $stderr);
+        $this->assertSame("# hi\n", \file_get_contents($this->server->path('README.md')), 'the whole file stays');
+        $this->assertSame([], \glob($this->server->path('.porta.*')), 'and no temporary is left');
+    }
+
+    public function testATemporaryLeftBehindIsNeverListed(): void
+    {
+        $this->server->write('.porta.Ab12Cd', 'half');
+        $this->server->write('src/.porta.Zz99zZ', 'half');
+
+        $listed = $this->answer(fn (\Closure $done) => $this->transport->list('', $done));
+        $walked = $this->answer(fn (\Closure $done): bool => $this->transport->walk('', [], $done));
+
+        $this->assertIsArray($listed);
+        $this->assertIsArray($walked);
+        $names = static fn (array $entries): array => \array_map(static fn (RemoteEntry $e): string => $e->name, $entries);
+        $this->assertNotContains('.porta.Ab12Cd', $names($listed));
+        $this->assertNotContains('src/.porta.Zz99zZ', $names($walked));
+        $this->assertContains('README.md', $names($listed));
+    }
+
+    public function testALoginRefusalIsKnownForOne(): void
+    {
+        $this->assertTrue($this->transport->refusesLogin('deploy@example.org: Permission denied (publickey,password).'));
+        $this->assertFalse($this->transport->refusesLogin('ssh: connect to host example.org port 22: Connection refused'));
+        $this->assertFalse($this->transport->refusesLogin('mkdir: /srv/x: Permission denied'), 'the server refusing a file is not refusing us');
     }
 }

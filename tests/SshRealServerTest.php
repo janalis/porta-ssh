@@ -15,6 +15,7 @@ use Porta\Tests\Support\DummyServer;
 use Porta\Tests\Support\ExercisesTransport;
 use Porta\Tests\Support\PresencePeer;
 use Porta\Tests\Support\ProvesPresenceOverAServer;
+use Porta\Tests\Support\ProvesTheLinkOverAServer;
 use Porta\Tests\Support\TempProject;
 
 /**
@@ -31,6 +32,7 @@ use Porta\Tests\Support\TempProject;
 final class SshRealServerTest extends TestCase
 {
     use ProvesPresenceOverAServer;
+    use ProvesTheLinkOverAServer;
     use ExercisesTransport;
 
     private TempProject $root;
@@ -77,6 +79,16 @@ final class SshRealServerTest extends TestCase
         $transport = $this->transport();
 
         $this->assertSame('ssh: connect to host example.org port '.$this->server->port.': Connection refused', $this->answer(static fn (\Closure $done) => $transport->list('', $done)));
+    }
+
+    private function remote(): SshTransport
+    {
+        return $this->transport();
+    }
+
+    private function spec(): RemoteSpec
+    {
+        return $this->spec;
     }
 
     private function server(): DummyServer

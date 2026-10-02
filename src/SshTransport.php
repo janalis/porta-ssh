@@ -56,6 +56,10 @@ exec cat -- "$1"';
      * Stdin into "$1", through a temporary beside it so a reader never sees
      * half a file, keeping its mode — unless "$2" is a stamp the file no
      * longer has, which exits 3 and writes nothing. Prints the new stamp.
+     *
+     * Only when all "$3" bytes came: a connection cut mid-upload ends stdin
+     * as if the file were whole, and `cat` succeeds — the count is what
+     * keeps half a file from being moved over the whole one. Exits 4.
      */
     private const string PUT = self::STAT.'
 d=$(dirname -- "$1")
@@ -63,6 +67,7 @@ mkdir -p -- "$d" || exit 2
 if [ -n "$2" ] && [ "$(stamp "$1" 2>/dev/null)" != "$2" ]; then cat >/dev/null; exit 3; fi
 t=$(mktemp "$d/.porta.XXXXXX") || exit 2
 cat > "$t" || { rm -f -- "$t"; exit 2; }
+[ "$(wc -c < "$t" | tr -d " ")" = "$3" ] || { rm -f -- "$t"; echo "the upload was cut short" >&2; exit 4; }
 if [ -e "$1" ]; then chmod "$(stat -c %a -- "$1" 2>/dev/null || stat -f %Lp -- "$1")" "$t" 2>/dev/null; fi
 mv -f -- "$t" "$1" || { rm -f -- "$t"; exit 2; }
 stamp "$1"';
@@ -92,6 +97,17 @@ done';
 
     /** How long the shared connection outlives its last use, in seconds. */
     private const int PERSIST = 600;
+
+    /**
+     * How long to wait to connect, and how a dead connection is noticed: a
+     * keepalive every 15 seconds, three unanswered and it is closed. Without
+     * them a connection that died with the network — a laptop asleep, a
+     * Wi-Fi changed — lingers as the shared one, and every call hangs on it.
+     */
+    private const array LIVENESS = ['-o', 'ConnectTimeout=10', '-o', 'ServerAliveInterval=15', '-o', 'ServerAliveCountMax=3'];
+
+    /** What mktemp names the temporary an upload goes through: one left behind by a cut is never listed. */
+    private const string TEMPORARY = '/^\.porta\.[A-Za-z0-9]{6}$/';
 
     /** The longest socket path the kernel takes (macOS's is the shortest, 104 with its NUL). */
     private const int SOCKET_PATH_MAX = 103;
@@ -128,13 +144,20 @@ done';
     public function put(string $path, string $bytes, ?RemoteStamp $expected, \Closure $done): void
     {
         $stamp = null === $expected ? '' : $expected->size.' '.$expected->mtime;
-        $this->script(self::PUT, [$this->spec->remotePath($path), $stamp], $bytes, static function (int $code, string $out, string $err) use ($done): void {
+        $this->script(self::PUT, [$this->spec->remotePath($path), $stamp, (string) \strlen($bytes)], $bytes, static function (int $code, string $out, string $err) use ($done): void {
             $done(match (true) {
                 3 === $code => null,
                 0 === $code => self::stamp($out) ?? 'the server did not say what it wrote',
                 default => self::failure($code, $err),
             });
         });
+    }
+
+    /** What ssh says when no key, password or agent got in: `user@host: Permission denied (publickey).` */
+    #[\Override]
+    public function refusesLogin(string $failure): bool
+    {
+        return \str_contains($failure, 'Permission denied (');
     }
 
     #[\Override]
@@ -187,7 +210,7 @@ done';
     {
         $remote = \implode(' ', ['sh', '-c', self::quote($script), 'sh', ...\array_map(self::quote(...), $arguments)]);
 
-        return [$this->ssh, '-o', 'BatchMode=yes', ...self::sharing($this->spec, $this->controlDir), '--', self::target($this->spec), $remote];
+        return [$this->ssh, '-o', 'BatchMode=yes', ...self::LIVENESS, ...self::sharing($this->spec, $this->controlDir), '--', self::target($this->spec), $remote];
     }
 
     /**
@@ -260,7 +283,7 @@ done';
         $entries = [];
         foreach (\explode("\0", $listing) as $record) {
             $fields = \explode("\t", $record, limit: 4);
-            if (4 !== \count($fields)) {
+            if (4 !== \count($fields) || 1 === \preg_match(self::TEMPORARY, \basename($fields[3]))) {
                 continue;
             }
             $entries[] = new RemoteEntry($fields[3], 'd' === $fields[0], new RemoteStamp((int) $fields[1], (int) $fields[2]));
