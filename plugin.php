@@ -31,7 +31,7 @@ return new class('ssh') extends AbstractPlugin implements RemoteProjectPlugin {
     public function remoteTransport(RemoteSpec $spec): ?RemoteTransport
     {
         $home = PortaHome::base();
-        if (!\in_array($spec->scheme, ['ssh', 'sftp'], strict: true) || null === $home) {
+        if (null === $home || !\in_array($spec->scheme, ['ssh', 'sftp'], strict: true)) {
             return null;
         }
 

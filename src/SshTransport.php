@@ -145,6 +145,7 @@ done';
     {
         $stamp = null === $expected ? '' : $expected->size.' '.$expected->mtime;
         $this->script(self::PUT, [$this->spec->remotePath($path), $stamp, (string) \strlen($bytes)], $bytes, static function (int $code, string $out, string $err) use ($done): void {
+            // @noinspection ProperNullCoalescingOperatorUsageInspection -- done() takes the stamp, or the sentence saying why there is none
             $done(match (true) {
                 3 === $code => null,
                 0 === $code => self::stamp($out) ?? 'the server did not say what it wrote',
