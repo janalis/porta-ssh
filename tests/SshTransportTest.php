@@ -257,6 +257,18 @@ final class SshTransportTest extends TestCase
         $this->assertSame($dir, SshTransport::controlDir($home->dir));
     }
 
+    public function testAControlDirectoryThatCannotBeMadeSharesNoConnection(): void
+    {
+        // A file holds the name the folder needs: ssh would exit, not connect, over a missing one.
+        $home = new TempProject(['.porta' => 'not a folder']);
+
+        $dir = SshTransport::controlDir($home->dir);
+
+        $this->assertNull($dir);
+        $this->assertSame([], SshTransport::sharing(new RemoteSpec('ssh', 'h', '/'), $dir));
+        $this->assertSame(['-p', '2222'], SshTransport::sharing(new RemoteSpec('ssh', 'h', '/', port: 2222), $dir), 'the port still goes');
+    }
+
     public function testAnUploadCutShortNeverReplacesTheFile(): void
     {
         $put = new \ReflectionClassConstant(SshTransport::class, 'PUT')->getValue();

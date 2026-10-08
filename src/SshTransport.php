@@ -113,12 +113,12 @@ done';
     private const int SOCKET_PATH_MAX = 103;
 
     /**
-     * @param string $controlDir where the shared connections' sockets live — private to this user
-     * @param string $ssh        the ssh binary
+     * @param string|null $controlDir where the shared connections' sockets live — private to this user; null shares none
+     * @param string      $ssh        the ssh binary
      */
     public function __construct(
         private readonly RemoteSpec $spec,
-        private readonly string $controlDir,
+        private readonly ?string $controlDir,
         private readonly string $ssh = 'ssh',
     ) {}
 
@@ -215,13 +215,15 @@ done';
 
     /**
      * Where shared connections' sockets live under $home: made, private to
-     * this user, when it is not there.
+     * this user, when it is not there — or null when it cannot be made, as
+     * ssh exits rather than connect when its socket's folder is missing.
      */
-    public static function controlDir(string $home): string
+    public static function controlDir(string $home): ?string
     {
         $dir = $home.'/.porta/ssh';
-        if (!\is_dir($dir)) {
-            \mkdir($dir, permissions: 0o700, recursive: true);
+        // @mago-expect lint:no-error-control-operator -- a folder that cannot be made only costs the shared connection, which the null says
+        if (!\is_dir($dir) && !@\mkdir($dir, permissions: 0o700, recursive: true) && !\is_dir($dir)) {
+            return null;
         }
 
         return $dir;
@@ -229,17 +231,18 @@ done';
 
     /**
      * The options that make ssh share one connection to $spec's server, and
-     * reach it on its port. A $controlDir too deep for the kernel's socket
-     * path limit — the socket is named by a 40-character hash — shares no
-     * connection rather than failing every call.
+     * reach it on its port. No $controlDir, or one too deep for the kernel's
+     * socket path limit — the socket is named by a 40-character hash — shares
+     * no connection rather than failing every call.
      *
      * @return list<string>
      */
-    public static function sharing(RemoteSpec $spec, string $controlDir): array
+    public static function sharing(RemoteSpec $spec, ?string $controlDir): array
     {
-        $options = (\strlen($controlDir) + 41) <= self::SOCKET_PATH_MAX
-            ? ['-o', 'ControlMaster=auto', '-o', 'ControlPath='.$controlDir.'/%C', '-o', 'ControlPersist='.self::PERSIST]
-            : [];
+        $options =
+            null !== $controlDir && (\strlen($controlDir) + 41) <= self::SOCKET_PATH_MAX
+                ? ['-o', 'ControlMaster=auto', '-o', 'ControlPath='.$controlDir.'/%C', '-o', 'ControlPersist='.self::PERSIST]
+                : [];
 
         return null === $spec->port ? $options : [...$options, '-p', (string) $spec->port];
     }
