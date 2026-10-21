@@ -17,7 +17,14 @@
             "api": 1,
             "commands": {
                 "ssh": "Porta\\SshPlugin\\Console\\OpenCommand"
-            }
+            },
+            "tools": [
+                {
+                    "name": "ssh",
+                    "purpose": "talks to the server",
+                    "setting": "binary"
+                }
+            ]
         }
     }
 }
