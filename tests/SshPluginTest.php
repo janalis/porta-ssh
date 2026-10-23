@@ -7,7 +7,6 @@ namespace Porta\SshPlugin\Tests;
 use PHPUnit\Framework\TestCase;
 use Porta\Filesystem\RemoteSpec;
 use Porta\Plugin\Api\AbstractPlugin;
-use Porta\Plugin\Api\PluginApi;
 use Porta\Plugin\Api\RemoteProjectPlugin;
 use Porta\Plugin\Runtime\PluginManager;
 use Porta\Plugin\Runtime\PluginSettings;
@@ -26,7 +25,7 @@ final class SshPluginTest extends TestCase
     {
         $settings = new PluginSettings('/p', ['ssh' => ['binary' => '/opt/bin/ssh']]);
         $manager = new PluginManager(new EventDispatcher(), $settings);
-        $api = new PluginApi('ssh', $manager, '/p', $settings);
+        $api = $manager->api('ssh', '/p', $settings);
         $plugin = require \dirname(__DIR__).'/plugin.php';
         $this->assertInstanceOf(RemoteProjectPlugin::class, $plugin, 'the ssh plugin opens remote projects');
         $this->assertInstanceOf(AbstractPlugin::class, $plugin, 'and is a plugin like any other');
