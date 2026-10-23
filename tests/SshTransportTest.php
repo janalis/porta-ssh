@@ -11,6 +11,7 @@ use Porta\Filesystem\RemoteSpec;
 use Porta\Filesystem\RemoteStamp;
 use Porta\SshPlugin\SshTransport;
 use Porta\Tests\Support\ExercisesTransport;
+use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\TempProject;
 
 /**
@@ -271,7 +272,7 @@ final class SshTransportTest extends TestCase
 
     public function testAnUploadCutShortNeverReplacesTheFile(): void
     {
-        $put = new \ReflectionClassConstant(SshTransport::class, 'PUT')->getValue();
+        $put = Probe::getStatic(SshTransport::class, 'PUT');
         $this->assertIsString($put);
         $command = $this->transport->command($put, [$this->server->path('README.md'), '', '1000']);
         $pipes = [];
