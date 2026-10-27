@@ -10,7 +10,7 @@ use Porta\Filesystem\RemoteFile;
 use Porta\Filesystem\RemoteSpec;
 use Porta\Filesystem\RemoteStamp;
 use Porta\SshPlugin\SshTransport;
-use Porta\Tests\Support\ExercisesTransport;
+use Porta\Tests\Support\MeetsTheStructuralVerbs;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\TempProject;
 
@@ -21,7 +21,7 @@ use Porta\Tests\Support\TempProject;
  */
 final class SshTransportTest extends TestCase
 {
-    use ExercisesTransport;
+    use MeetsTheStructuralVerbs;
 
     private const string FAKE_SSH = __DIR__.'/fixtures/fake-ssh';
 
@@ -32,6 +32,16 @@ final class SshTransportTest extends TestCase
     {
         $this->server = new TempProject(['README.md' => "# hi\n", 'src/App.php' => "<?php\n", "it's a \"name\" with spaces.txt" => 'quoted']);
         $this->transport = new SshTransport(new RemoteSpec('ssh', 'example.org', $this->server->dir), '/tmp', self::FAKE_SSH);
+    }
+
+    private function transportUnderTest(): SshTransport
+    {
+        return $this->transport;
+    }
+
+    private function serverUnderTest(): TempProject
+    {
+        return $this->server;
     }
 
     public function testItListsADirectory(): void
@@ -159,21 +169,6 @@ final class SshTransportTest extends TestCase
         $this->server->write('file', 'x');
 
         $this->assertIsString($this->answer(fn (\Closure $done) => $this->transport->put('file/under.txt', 'x', null, $done)));
-    }
-
-    public function testDirectoriesAreMade(): void
-    {
-        $this->assertDirectoriesAreMade($this->transport, $this->server);
-    }
-
-    public function testADirectoryIsMoved(): void
-    {
-        $this->assertADirectoryIsMoved($this->transport, $this->server);
-    }
-
-    public function testDirectoriesAreRemovedWithWhatTheyHold(): void
-    {
-        $this->assertDirectoriesAreRemovedWithWhatTheyHold($this->transport, $this->server);
     }
 
     public function testAFailedRenameSaysWhy(): void
