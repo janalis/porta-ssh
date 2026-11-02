@@ -1,5 +1,5 @@
 {
-    "name": "porta/ssh",
+    "name": "janalis/porta-ssh",
     "description": "Open a project that lives on a server over ssh: browse, edit and save its files as though they were here",
     "type": "porta-plugin",
     "license": "MIT",
