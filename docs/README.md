@@ -3,6 +3,8 @@
 Opens a project that lives on a server, over ssh, and edits it as though it
 were here. Enabled by default; it does nothing until a remote project is open.
 
+![The ssh page in Settings → Plugins](/screenshots/plugin-ssh.svg)
+
 ```sh
 porta ssh deploy@example.org:/srv/app
 porta ssh ssh://deploy@example.org:2222/srv/app
