@@ -241,6 +241,19 @@ final class SshTransportTest extends TestCase
         $this->assertSame(['index.html'], \array_values(\array_diff((array) \scandir($this->server->path('page.html')), ['.', '..'])), 'nothing left inside it');
     }
 
+    /** A folder dropped onto one with "Overwrite" replaces it on the server, as it does here — not nested inside. */
+    public function testAFolderRenamedOntoAFolderReplacesIt(): void
+    {
+        $this->server->write('new/a.txt', 'mine');
+        $this->server->write('old/b.txt', 'gone');
+
+        $this->assertNull($this->answer(fn (\Closure $done) => $this->transport->rename('new', 'old', $done)));
+
+        $this->assertSame('mine', \file_get_contents($this->server->path('old/a.txt')));
+        $this->assertFileDoesNotExist($this->server->path('old/new'), 'not nested');
+        $this->assertFileDoesNotExist($this->server->path('old/b.txt'), 'replaced, as the local rename replaces');
+    }
+
     public function testAFailedRenameSaysWhy(): void
     {
         $this->assertIsString($this->answer(fn (\Closure $done) => $this->transport->rename('missing', 'there', $done)));

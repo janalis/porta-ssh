@@ -106,7 +106,12 @@ done';
     private const string IN_DIRECTORY = 'cd -- "$1" && shift && exec "$@"';
 
     private const string MKDIR = 'mkdir -p -- "$1"';
-    private const string RENAME = 'mkdir -p -- "$(dirname -- "$2")" && mv -f -- "$1" "$2"';
+    /**
+     * A folder onto a folder that is there REPLACES it, as the rename here
+     * did — reached only once the user answered "Overwrite". `mv` alone moved
+     * it inside, `dst/src`, and the cache then followed that layout.
+     */
+    private const string RENAME = 'mkdir -p -- "$(dirname -- "$2")" && { [ ! -d "$1" ] || [ -h "$2" ] || [ ! -d "$2" ] || rm -rf -- "$2"; } && mv -f -- "$1" "$2"';
     private const string REMOVE = 'rm -rf -- "$1"';
 
     /** How long the shared connection outlives its last use, in seconds. */
