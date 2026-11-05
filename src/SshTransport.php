@@ -9,6 +9,7 @@ use Porta\Filesystem\RemoteEntry;
 use Porta\Filesystem\RemoteFile;
 use Porta\Filesystem\RemoteSpec;
 use Porta\Filesystem\RemoteStamp;
+use Porta\Support\Files;
 
 /**
  * A server's project over ssh: each verb is one `ssh` running a short POSIX
@@ -222,8 +223,8 @@ done';
     public static function controlDir(string $home): ?string
     {
         $dir = $home.'/.porta/ssh';
-        // @mago-expect lint:no-error-control-operator -- a folder that cannot be made only costs the shared connection, which the null says
-        if (!\is_dir($dir) && !@\mkdir($dir, permissions: 0o700, recursive: true) && !\is_dir($dir)) {
+        // A folder that cannot be made only costs the shared connection, which the null says.
+        if (!Files::ensureDir($dir, permissions: 0o700)) {
             return null;
         }
 
