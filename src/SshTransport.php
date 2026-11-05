@@ -183,7 +183,11 @@ done';
         $names = \implode(' -o ', \array_map(static fn (string $name): string => '-name '.self::quote($name), $skip));
         $prune = [] === $skip ? '' : '\\( -type d \\( '.$names.' \\) \\) -prune -o';
         $this->script(\str_replace('{prune}', $prune, self::WALK), [$this->spec->remotePath($path)], null, static function (int $code, string $out, string $err) use ($done): void {
-            $done(0 === $code ? self::entries($out) : self::failure($code, $err));
+            // 1 is find saying a folder refused it — a database volume owned by
+            // another user — after printing everything else: the walk is whole
+            // but for that folder. Refused outright, it threw the tree away for
+            // the session. The script's own failures are 2, ssh's 255.
+            $done(0 === $code || 1 === $code ? self::entries($out) : self::failure($code, $err));
         });
 
         return true;

@@ -11,6 +11,7 @@ use Porta\Filesystem\RemoteSpec;
 use Porta\Filesystem\RemoteStamp;
 use Porta\SshPlugin\SshTransport;
 use Porta\Tests\Support\MeetsTheStructuralVerbs;
+use Porta\Tests\Support\PreservesPath;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\TempProject;
 
@@ -22,6 +23,7 @@ use Porta\Tests\Support\TempProject;
 final class SshTransportTest extends TestCase
 {
     use MeetsTheStructuralVerbs;
+    use PreservesPath;
 
     private const string FAKE_SSH = __DIR__.'/fixtures/fake-ssh';
 
@@ -116,6 +118,28 @@ final class SshTransportTest extends TestCase
     {
         $this->assertCount(4, (array) $this->answer(fn (\Closure $done): bool => $this->transport->walk('', [], $done)));
         $this->assertIsString($this->answer(fn (\Closure $done): bool => $this->transport->walk('nope', [], $done)));
+    }
+
+    /**
+     * One folder nobody may read leaves the rest of the walk standing. GNU find
+     * (a Linux server's) prints the rest and exits 1 over it; this Mac's BSD
+     * find takes the script's other branch, so a find that answers as GNU's
+     * does stands in for it.
+     */
+    public function testAWalkPassesOverAFolderItMayNotRead(): void
+    {
+        $bin = new TempProject();
+        $bin->write(
+            'find',
+            "#!/bin/sh\ncase \"$*\" in *'-maxdepth 0'*) exit 0;; esac\nprintf 'f\\t5\\t1700000000.0\\tREADME.md\\0d\\t0\\t1700000000.0\\tsrc\\0'\necho \"find: './mysql-data': Permission denied\" >&2\nexit 1\n",
+        );
+        \chmod($bin->path('find'), permissions: 0o755);
+        \putenv('PATH='.$bin->dir.':'.(string) \getenv('PATH'));
+
+        $entries = $this->answer(fn (\Closure $done): bool => $this->transport->walk('', [], $done));
+
+        $this->assertIsArray($entries, 'not refused');
+        $this->assertCount(2, $entries, 'everything it printed is kept');
     }
 
     public function testACommandRunsInTheProjectsDirectoryOnTheServer(): void
