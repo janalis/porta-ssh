@@ -30,15 +30,17 @@ final class SshTransport extends CommandTransport
 {
     /**
      * Prints a stamp — `size mtime` — for "$1": GNU and busybox `stat -c`,
-     * else BSD `stat -f`.
+     * else BSD `stat -f`. Through a link (`-L`): a link's own stamp never
+     * moves, so an edit of its target by someone else went unseen and the
+     * next save overwrote it without a word.
      */
-    private const string STAT = 'stamp() { stat -c \'%s %Y\' -- "$1" 2>/dev/null || stat -f \'%z %m\' -- "$1"; }';
+    private const string STAT = 'stamp() { stat -L -c \'%s %Y\' -- "$1" 2>/dev/null || stat -L -f \'%z %m\' -- "$1"; }';
 
     /** The entries of "$1": `type<TAB>size<TAB>mtime<TAB>name<NUL>` each, by GNU find when there is one. */
     private const string LIST = self::STAT.'
 cd -- "$1" || exit 2
 if find . -maxdepth 0 -printf "" >/dev/null 2>&1; then
-  exec find . -mindepth 1 -maxdepth 1 -printf "%Y\t%s\t%T@\t%f\0"
+  exec find -L . -mindepth 1 -maxdepth 1 -printf "%Y\t%s\t%T@\t%f\0"
 fi
 for f in .[!.]* ..?* *; do
   [ -e "$f" ] || continue

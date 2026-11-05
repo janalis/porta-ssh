@@ -205,6 +205,11 @@ final class SshTransportTest extends TestCase
         \clearstatcache();
         $this->assertSame(0o600, \fileperms($this->server->path('shared/.env')) & 0o777);
         $this->assertSame([], \glob($this->server->path('.porta.*')), 'no temporary left behind');
+
+        // Someone else edits the target: a save made from what was had is refused.
+        \file_put_contents($this->server->path('shared/.env'), data: "A=3 # theirs\n");
+        $this->assertNull($this->answer(fn (\Closure $done) => $this->transport->put('.env', "A=4\n", $stamp, $done)), "the target's stamp moved, not the link's");
+        $this->assertSame("A=3 # theirs\n", \file_get_contents($this->server->path('shared/.env')), 'their edit kept');
     }
 
     public function testAWriteOverAChangedFileIsRefusedAndWritesNothing(): void
