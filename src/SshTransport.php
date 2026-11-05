@@ -68,12 +68,15 @@ exec cat -- "$1"';
      * its temporary 0600, and a page a web server could not read was the
      * result. A symbolic link is written THROUGH, not replaced: `mv` put a
      * plain file where a deploy's shared `.env` link was, with the link's own
-     * mode, 0777 on Linux.
+     * mode, 0777 on Linux. A folder where the file was is refused: a forced
+     * save over one moved the content INTO it, under a name nothing lists,
+     * and said it was saved.
      */
     private const string PUT = self::STAT.'
 d=$(dirname -- "$1")
 mkdir -p -- "$d" || exit 2
 if [ -n "$2" ] && [ "$(stamp "$1" 2>/dev/null)" != "$2" ]; then cat >/dev/null; exit 3; fi
+if [ -d "$1" ]; then cat >/dev/null; echo "$1 is a folder on the server now" >&2; exit 2; fi
 t=$(mktemp "$d/.porta.XXXXXX") || exit 2
 cat > "$t" || { rm -f -- "$t"; exit 2; }
 [ "$(wc -c < "$t" | tr -d " ")" = "$3" ] || { rm -f -- "$t"; echo "the upload was cut short" >&2; exit 4; }

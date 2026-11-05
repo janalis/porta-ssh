@@ -229,6 +229,18 @@ final class SshTransportTest extends TestCase
         $this->assertIsString($this->answer(fn (\Closure $done) => $this->transport->put('file/under.txt', 'x', null, $done)));
     }
 
+    /** A forced save over what has become a folder on the server is refused, not moved inside it. */
+    public function testASaveOverWhatIsNowAFolderIsRefused(): void
+    {
+        $this->server->write('page.html/index.html', 'theirs');
+
+        $why = $this->answer(fn (\Closure $done) => $this->transport->put('page.html', 'mine', null, $done));
+
+        $this->assertIsString($why);
+        $this->assertStringContainsString('is a folder on the server now', $why);
+        $this->assertSame(['index.html'], \array_values(\array_diff((array) \scandir($this->server->path('page.html')), ['.', '..'])), 'nothing left inside it');
+    }
+
     public function testAFailedRenameSaysWhy(): void
     {
         $this->assertIsString($this->answer(fn (\Closure $done) => $this->transport->rename('missing', 'there', $done)));
