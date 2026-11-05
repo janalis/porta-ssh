@@ -61,6 +61,12 @@ exec cat -- "$1"';
      * Only when all "$3" bytes came: a connection cut mid-upload ends stdin
      * as if the file were whole, and `cat` succeeds — the count is what
      * keeps half a file from being moved over the whole one. Exits 4.
+     *
+     * A new file gets the mode the server's umask gives one — `mktemp` makes
+     * its temporary 0600, and a page a web server could not read was the
+     * result. A symbolic link is written THROUGH, not replaced: `mv` put a
+     * plain file where a deploy's shared `.env` link was, with the link's own
+     * mode, 0777 on Linux.
      */
     private const string PUT = self::STAT.'
 d=$(dirname -- "$1")
@@ -69,7 +75,9 @@ if [ -n "$2" ] && [ "$(stamp "$1" 2>/dev/null)" != "$2" ]; then cat >/dev/null; 
 t=$(mktemp "$d/.porta.XXXXXX") || exit 2
 cat > "$t" || { rm -f -- "$t"; exit 2; }
 [ "$(wc -c < "$t" | tr -d " ")" = "$3" ] || { rm -f -- "$t"; echo "the upload was cut short" >&2; exit 4; }
-if [ -e "$1" ]; then chmod "$(stat -c %a -- "$1" 2>/dev/null || stat -f %Lp -- "$1")" "$t" 2>/dev/null; fi
+if [ -h "$1" ]; then cat -- "$t" > "$1" || { rm -f -- "$t"; exit 2; }; rm -f -- "$t"; stamp "$1"; exit 0; fi
+if [ -e "$1" ]; then chmod "$(stat -c %a -- "$1" 2>/dev/null || stat -f %Lp -- "$1")" "$t" 2>/dev/null
+else chmod "$(printf %o $((0666 & ~$(umask))))" "$t" 2>/dev/null; fi
 mv -f -- "$t" "$1" || { rm -f -- "$t"; exit 2; }
 stamp "$1"';
 

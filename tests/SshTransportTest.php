@@ -154,6 +154,35 @@ final class SshTransportTest extends TestCase
         $this->assertSame(0o640, \fileperms($this->server->path('README.md')) & 0o777);
     }
 
+    public function testANewFileGetsTheModeTheServersUmaskGives(): void
+    {
+        $this->answer(fn (\Closure $done) => $this->transport->put('page.html', '<p>', null, $done));
+
+        \clearstatcache();
+        $umask = \umask();
+        $this->assertSame(0o666 & ~$umask, \fileperms($this->server->path('page.html')) & 0o777, 'not mktemp\'s 0600');
+    }
+
+    public function testAWriteToALinkGoesThroughItAndKeepsTheLink(): void
+    {
+        $this->server->write('shared/.env', "A=1\n");
+        \chmod($this->server->path('shared/.env'), permissions: 0o600);
+        \symlink('shared/.env', $this->server->path('.env'));
+
+        $fetched = $this->answer(fn (\Closure $done) => $this->transport->fetch('.env', $done));
+        $this->assertInstanceOf(RemoteFile::class, $fetched);
+        $this->assertSame("A=1\n", $fetched->bytes);
+
+        $stamp = $this->answer(fn (\Closure $done) => $this->transport->put('.env', "A=2\n", $fetched->stamp, $done));
+
+        $this->assertInstanceOf(RemoteStamp::class, $stamp);
+        $this->assertTrue(\is_link($this->server->path('.env')), 'still the link');
+        $this->assertSame("A=2\n", \file_get_contents($this->server->path('shared/.env')), 'its target written');
+        \clearstatcache();
+        $this->assertSame(0o600, \fileperms($this->server->path('shared/.env')) & 0o777);
+        $this->assertSame([], \glob($this->server->path('.porta.*')), 'no temporary left behind');
+    }
+
     public function testAWriteOverAChangedFileIsRefusedAndWritesNothing(): void
     {
         $stale = new RemoteStamp(1, 1);
