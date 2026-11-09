@@ -24,7 +24,11 @@
                     "purpose": "talks to the server",
                     "setting": "binary"
                 }
-            ]
+            ],
+            "store": {
+                "title": "SSH",
+                "category": "remote"
+            }
         }
     }
 }
