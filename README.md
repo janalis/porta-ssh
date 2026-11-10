@@ -2,6 +2,8 @@
 
 Open a project that lives on a server over ssh: browse, edit and save its files as though they were here.
 
+![The ssh page in Settings → Plugins](https://janalis.github.io/porta/screenshots/plugin-ssh.svg)
+
 This is `janalis/porta-ssh`, one of the plugins bundled with
 [Porta](https://github.com/janalis/porta), the terminal IDE for PHP. Porta
 ships it already, on by default: turn it off under **Settings → Plugins**.
