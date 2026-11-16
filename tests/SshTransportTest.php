@@ -60,7 +60,7 @@ final class SshTransportTest extends TestCase
         $this->assertSame(['README.md', 'it\'s a "name" with spaces.txt', 'src'], \array_keys($byName));
         $this->assertTrue($byName['src']->isDir);
         $this->assertFalse($byName['README.md']->isDir);
-        $this->assertEquals($this->stampOf($this->server, 'README.md'), $byName['README.md']->stamp);
+        $this->assertEquals($this->stampOf($this->server, relative: 'README.md'), $byName['README.md']->stamp);
     }
 
     public function testListingAMissingDirectorySaysWhy(): void
@@ -77,12 +77,12 @@ final class SshTransportTest extends TestCase
 
         $this->assertInstanceOf(RemoteFile::class, $file);
         $this->assertSame('quoted', $file->bytes);
-        $this->assertEquals($this->stampOf($this->server, 'it\'s a "name" with spaces.txt'), $file->stamp);
+        $this->assertEquals($this->stampOf($this->server, relative: 'it\'s a "name" with spaces.txt'), $file->stamp);
     }
 
     public function testAFileWhoseContentStartsLikeAStampIsStillItsContent(): void
     {
-        $this->server->write('odd.txt', "12 34\nmore\n");
+        $this->server->write('odd.txt', content: "12 34\nmore\n");
 
         $file = $this->answer(fn (\Closure $done) => $this->transport->fetch('odd.txt', $done));
 
@@ -92,9 +92,9 @@ final class SshTransportTest extends TestCase
 
     public function testItWalksTheWholeTreeSkippingWhatItIsTold(): void
     {
-        $this->server->write('vendor/x/Skipped.php', '');
-        $this->server->write('deep/er/Found.php', '<?php');
-        $this->server->write('lib/vendor/Nested.php', '');
+        $this->server->write('vendor/x/Skipped.php', content: '');
+        $this->server->write('deep/er/Found.php', content: '<?php');
+        $this->server->write('lib/vendor/Nested.php', content: '');
 
         $entries = $this->answer(fn (\Closure $done): bool => $this->transport->walk('', ['vendor', "it's"], $done));
 
@@ -111,7 +111,7 @@ final class SshTransportTest extends TestCase
             'a skipped name is skipped at any depth — as a directory only',
         );
         $this->assertTrue($byPath['deep/er']->isDir);
-        $this->assertEquals($this->stampOf($this->server, 'deep/er/Found.php'), $byPath['deep/er/Found.php']->stamp);
+        $this->assertEquals($this->stampOf($this->server, relative: 'deep/er/Found.php'), $byPath['deep/er/Found.php']->stamp);
     }
 
     public function testAWalkWithNothingToSkipAndOneThatFails(): void
@@ -131,7 +131,7 @@ final class SshTransportTest extends TestCase
         $bin = new TempProject();
         $bin->write(
             'find',
-            "#!/bin/sh\ncase \"$*\" in *'-maxdepth 0'*) exit 0;; esac\nprintf 'f\\t5\\t1700000000.0\\tREADME.md\\0d\\t0\\t1700000000.0\\tsrc\\0'\necho \"find: './mysql-data': Permission denied\" >&2\nexit 1\n",
+            content: "#!/bin/sh\ncase \"$*\" in *'-maxdepth 0'*) exit 0;; esac\nprintf 'f\\t5\\t1700000000.0\\tREADME.md\\0d\\t0\\t1700000000.0\\tsrc\\0'\necho \"find: './mysql-data': Permission denied\" >&2\nexit 1\n",
         );
         \chmod($bin->path('find'), permissions: 0o755);
         \putenv('PATH='.$bin->dir.':'.(string) \getenv('PATH'));
@@ -144,7 +144,7 @@ final class SshTransportTest extends TestCase
 
     public function testACommandRunsInTheProjectsDirectoryOnTheServer(): void
     {
-        $this->server->write('sub/x.txt', "it's here");
+        $this->server->write('sub/x.txt', content: "it's here");
 
         $command = $this->transport->remoteCommand(['grep', '-rlF', '--', "it's", 'sub']);
 
@@ -159,10 +159,10 @@ final class SshTransportTest extends TestCase
 
     public function testItWritesAFileAndAnswersItsNewStamp(): void
     {
-        $stamp = $this->answer(fn (\Closure $done) => $this->transport->put('new dir/new.txt', "fresh\n", null, $done));
+        $stamp = $this->answer(fn (\Closure $done) => $this->transport->put('new dir/new.txt', bytes: "fresh\n", expected: null, done: $done));
 
         $this->assertSame("fresh\n", \file_get_contents($this->server->path('new dir/new.txt')), 'the directory it needs is made');
-        $this->assertEquals($this->stampOf($this->server, 'new dir/new.txt'), $stamp);
+        $this->assertEquals($this->stampOf($this->server, relative: 'new dir/new.txt'), $stamp);
         $this->assertSame([], \glob($this->server->path('new dir/.porta.*')), 'no temporary left behind');
     }
 
@@ -170,7 +170,7 @@ final class SshTransportTest extends TestCase
     {
         \chmod($this->server->path('README.md'), permissions: 0o640);
 
-        $stamp = $this->answer(fn (\Closure $done) => $this->transport->put('README.md', 'mine', $this->stampOf($this->server, 'README.md'), $done));
+        $stamp = $this->answer(fn (\Closure $done) => $this->transport->put('README.md', bytes: 'mine', expected: $this->stampOf($this->server, relative: 'README.md'), done: $done));
 
         $this->assertInstanceOf(RemoteStamp::class, $stamp);
         $this->assertSame('mine', \file_get_contents($this->server->path('README.md')));
@@ -180,7 +180,7 @@ final class SshTransportTest extends TestCase
 
     public function testANewFileGetsTheModeTheServersUmaskGives(): void
     {
-        $this->answer(fn (\Closure $done) => $this->transport->put('page.html', '<p>', null, $done));
+        $this->answer(fn (\Closure $done) => $this->transport->put('page.html', bytes: '<p>', expected: null, done: $done));
 
         \clearstatcache();
         $umask = \umask();
@@ -189,7 +189,7 @@ final class SshTransportTest extends TestCase
 
     public function testAWriteToALinkGoesThroughItAndKeepsTheLink(): void
     {
-        $this->server->write('shared/.env', "A=1\n");
+        $this->server->write('shared/.env', content: "A=1\n");
         \chmod($this->server->path('shared/.env'), permissions: 0o600);
         \symlink('shared/.env', $this->server->path('.env'));
 
@@ -197,7 +197,7 @@ final class SshTransportTest extends TestCase
         $this->assertInstanceOf(RemoteFile::class, $fetched);
         $this->assertSame("A=1\n", $fetched->bytes);
 
-        $stamp = $this->answer(fn (\Closure $done) => $this->transport->put('.env', "A=2\n", $fetched->stamp, $done));
+        $stamp = $this->answer(fn (\Closure $done) => $this->transport->put('.env', bytes: "A=2\n", expected: $fetched->stamp, done: $done));
 
         $this->assertInstanceOf(RemoteStamp::class, $stamp);
         $this->assertTrue(\is_link($this->server->path('.env')), 'still the link');
@@ -208,7 +208,7 @@ final class SshTransportTest extends TestCase
 
         // Someone else edits the target: a save made from what was had is refused.
         \file_put_contents($this->server->path('shared/.env'), data: "A=3 # theirs\n");
-        $this->assertNull($this->answer(fn (\Closure $done) => $this->transport->put('.env', "A=4\n", $stamp, $done)), "the target's stamp moved, not the link's");
+        $this->assertNull($this->answer(fn (\Closure $done) => $this->transport->put('.env', bytes: "A=4\n", expected: $stamp, done: $done)), "the target's stamp moved, not the link's");
         $this->assertSame("A=3 # theirs\n", \file_get_contents($this->server->path('shared/.env')), 'their edit kept');
     }
 
@@ -216,25 +216,25 @@ final class SshTransportTest extends TestCase
     {
         $stale = new RemoteStamp(1, 1);
 
-        $this->assertNull($this->answer(fn (\Closure $done) => $this->transport->put('README.md', 'mine', $stale, $done)));
+        $this->assertNull($this->answer(fn (\Closure $done) => $this->transport->put('README.md', bytes: 'mine', expected: $stale, done: $done)));
         $this->assertSame("# hi\n", \file_get_contents($this->server->path('README.md')));
-        $this->assertNull($this->answer(fn (\Closure $done) => $this->transport->put('gone.txt', 'mine', $stale, $done)), 'nor over a file deleted since');
+        $this->assertNull($this->answer(fn (\Closure $done) => $this->transport->put('gone.txt', bytes: 'mine', expected: $stale, done: $done)), 'nor over a file deleted since');
         $this->assertFileDoesNotExist($this->server->path('gone.txt'));
     }
 
     public function testAWriteThatCannotHappenSaysWhy(): void
     {
-        $this->server->write('file', 'x');
+        $this->server->write('file', content: 'x');
 
-        $this->assertIsString($this->answer(fn (\Closure $done) => $this->transport->put('file/under.txt', 'x', null, $done)));
+        $this->assertIsString($this->answer(fn (\Closure $done) => $this->transport->put('file/under.txt', bytes: 'x', expected: null, done: $done)));
     }
 
     /** A forced save over what has become a folder on the server is refused, not moved inside it. */
     public function testASaveOverWhatIsNowAFolderIsRefused(): void
     {
-        $this->server->write('page.html/index.html', 'theirs');
+        $this->server->write('page.html/index.html', content: 'theirs');
 
-        $why = $this->answer(fn (\Closure $done) => $this->transport->put('page.html', 'mine', null, $done));
+        $why = $this->answer(fn (\Closure $done) => $this->transport->put('page.html', bytes: 'mine', expected: null, done: $done));
 
         $this->assertIsString($why);
         $this->assertStringContainsString('is a folder on the server now', $why);
@@ -244,10 +244,10 @@ final class SshTransportTest extends TestCase
     /** A folder dropped onto one with "Overwrite" replaces it on the server, as it does here — not nested inside. */
     public function testAFolderRenamedOntoAFolderReplacesIt(): void
     {
-        $this->server->write('new/a.txt', 'mine');
-        $this->server->write('old/b.txt', 'gone');
+        $this->server->write('new/a.txt', content: 'mine');
+        $this->server->write('old/b.txt', content: 'gone');
 
-        $this->assertNull($this->answer(fn (\Closure $done) => $this->transport->rename('new', 'old', $done)));
+        $this->assertNull($this->answer(fn (\Closure $done) => $this->transport->rename('new', to: 'old', done: $done)));
 
         $this->assertSame('mine', \file_get_contents($this->server->path('old/a.txt')));
         $this->assertFileDoesNotExist($this->server->path('old/new'), 'not nested');
@@ -256,7 +256,7 @@ final class SshTransportTest extends TestCase
 
     public function testAFailedRenameSaysWhy(): void
     {
-        $this->assertIsString($this->answer(fn (\Closure $done) => $this->transport->rename('missing', 'there', $done)));
+        $this->assertIsString($this->answer(fn (\Closure $done) => $this->transport->rename('missing', to: 'there', done: $done)));
     }
 
     public function testAnSshThatCannotRunSaysSo(): void
@@ -350,7 +350,7 @@ final class SshTransportTest extends TestCase
 
     public function testAnUploadCutShortNeverReplacesTheFile(): void
     {
-        $put = Probe::getStatic(SshTransport::class, 'PUT');
+        $put = Probe::getStatic(SshTransport::class, member: 'PUT');
         $this->assertIsString($put);
         $command = $this->transport->command($put, [$this->server->path('README.md'), '', '1000']);
         $pipes = [];
@@ -370,8 +370,8 @@ final class SshTransportTest extends TestCase
 
     public function testATemporaryLeftBehindIsNeverListed(): void
     {
-        $this->server->write('.porta.Ab12Cd', 'half');
-        $this->server->write('src/.porta.Zz99zZ', 'half');
+        $this->server->write('.porta.Ab12Cd', content: 'half');
+        $this->server->write('src/.porta.Zz99zZ', content: 'half');
 
         $listed = $this->answer(fn (\Closure $done) => $this->transport->list('', $done));
         $walked = $this->answer(fn (\Closure $done): bool => $this->transport->walk('', [], $done));

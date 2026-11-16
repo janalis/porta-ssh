@@ -24,7 +24,7 @@ return new class('ssh') extends AbstractPlugin implements RemoteProjectPlugin {
 
     public function activate(PluginApi $api): void
     {
-        $api->registerSetting('binary', 'ssh binary', 'text', 'ssh', hint: 'the ssh client to run; a name on PATH or a full path');
+        $api->registerSetting('binary', label: 'ssh binary', kind: 'text', default: 'ssh', hint: 'the ssh client to run; a name on PATH or a full path');
         $this->api = $api;
     }
 

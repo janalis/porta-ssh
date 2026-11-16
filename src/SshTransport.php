@@ -144,7 +144,7 @@ done';
     #[\Override]
     public function list(string $path, \Closure $done): void
     {
-        $this->script(self::LIST, [$this->spec->remotePath($path)], null, static function (int $code, string $out, string $err) use ($done): void {
+        $this->script(self::LIST, [$this->spec->remotePath($path)], stdin: null, done: static function (int $code, string $out, string $err) use ($done): void {
             $done(0 === $code ? self::entries($out) : self::failure($code, $err));
         });
     }
@@ -152,7 +152,7 @@ done';
     #[\Override]
     public function fetch(string $path, \Closure $done): void
     {
-        $this->script(self::FETCH, [$this->spec->remotePath($path)], null, static function (int $code, string $out, string $err) use ($done): void {
+        $this->script(self::FETCH, [$this->spec->remotePath($path)], stdin: null, done: static function (int $code, string $out, string $err) use ($done): void {
             $parts = \explode("\n", $out, limit: 2);
             $stamp = self::stamp($parts[0]);
             $done(0 === $code && null !== $stamp ? new RemoteFile($parts[1] ?? '', $stamp) : self::failure($code, $err));
@@ -192,7 +192,7 @@ done';
     {
         $names = \implode(' -o ', \array_map(static fn (string $name): string => '-name '.self::quote($name), $skip));
         $prune = [] === $skip ? '' : '\\( -type d \\( '.$names.' \\) \\) -prune -o';
-        $this->script(\str_replace('{prune}', $prune, self::WALK), [$this->spec->remotePath($path)], null, static function (int $code, string $out, string $err) use ($done): void {
+        $this->script(\str_replace('{prune}', $prune, self::WALK), [$this->spec->remotePath($path)], stdin: null, done: static function (int $code, string $out, string $err) use ($done): void {
             // 1 is find saying a folder refused it — a database volume owned by
             // another user — after printing everything else: the walk is whole
             // but for that folder. Refused outright, it threw the tree away for
@@ -206,20 +206,20 @@ done';
     #[\Override]
     public function mkdir(string $path, \Closure $done): void
     {
-        $this->script(self::MKDIR, [$this->spec->remotePath($path)], null, self::outcome($done));
+        $this->script(self::MKDIR, [$this->spec->remotePath($path)], stdin: null, done: self::outcome($done));
     }
 
     #[\Override]
     public function rename(string $from, string $to, \Closure $done): void
     {
-        $this->script(self::RENAME, [$this->spec->remotePath($from), $this->spec->remotePath($to)], null, self::outcome($done));
+        $this->script(self::RENAME, [$this->spec->remotePath($from), $this->spec->remotePath($to)], stdin: null, done: self::outcome($done));
     }
 
     /** `rm -rf` serves a file and a directory alike. */
     #[\Override]
     public function remove(string $path, bool $isDir, \Closure $done): void
     {
-        $this->script(self::REMOVE, [$this->spec->remotePath($path)], null, self::outcome($done));
+        $this->script(self::REMOVE, [$this->spec->remotePath($path)], stdin: null, done: self::outcome($done));
     }
 
     /**

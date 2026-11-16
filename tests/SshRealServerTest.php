@@ -66,8 +66,8 @@ final class SshRealServerTest extends TestCase
         $file = $this->answer(static fn (\Closure $done) => $transport->fetch('README.md', $done));
         $this->assertInstanceOf(RemoteFile::class, $file);
         $this->assertSame("# hi\n", $file->bytes);
-        $this->assertInstanceOf(RemoteStamp::class, $this->answer(static fn (\Closure $done) => $transport->put('README.md', "# changed\n", $file->stamp, $done)));
-        $this->assertNull($this->answer(static fn (\Closure $done) => $transport->put('README.md', 'lost', $file->stamp, $done)), 'changed since: refused');
+        $this->assertInstanceOf(RemoteStamp::class, $this->answer(static fn (\Closure $done) => $transport->put('README.md', bytes: "# changed\n", expected: $file->stamp, done: $done)));
+        $this->assertNull($this->answer(static fn (\Closure $done) => $transport->put('README.md', bytes: 'lost', expected: $file->stamp, done: $done)), 'changed since: refused');
         $this->assertSame("# changed\n", \file_get_contents($this->root->path('README.md')));
 
         $this->assertTheStructuralVerbs($transport, $this->root);

@@ -25,7 +25,7 @@ final class SshPluginTest extends TestCase
     {
         $settings = new PluginSettings('/p', ['ssh' => ['binary' => '/opt/bin/ssh']]);
         $manager = new PluginManager(new EventDispatcher(), $settings);
-        $api = $manager->api('ssh', '/p', $settings);
+        $api = $manager->api('ssh', rootDir: '/p', settings: $settings);
         $plugin = require \dirname(__DIR__).'/porta.php';
         $this->assertInstanceOf(RemoteProjectPlugin::class, $plugin, 'the ssh plugin opens remote projects');
         $this->assertInstanceOf(AbstractPlugin::class, $plugin, 'and is a plugin like any other');
@@ -45,7 +45,7 @@ final class SshPluginTest extends TestCase
 
         $this->assertInstanceOf(SshTransport::class, $transport);
         $this->assertSame('/opt/bin/ssh', $transport->command('true', [])[0]);
-        $this->assertSame($home->path('.porta/ssh'), Probe::get($transport, 'controlDir'));
+        $this->assertSame($home->path('.porta/ssh'), Probe::get($transport, property: 'controlDir'));
         $this->assertInstanceOf(SshTransport::class, $plugin->remoteTransport(new RemoteSpec('sftp', 'example.org', '/srv')));
         $this->assertNull($plugin->remoteTransport(new RemoteSpec('ftp', 'example.org', '/srv')), 'not its scheme');
     }
